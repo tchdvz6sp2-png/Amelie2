@@ -16,7 +16,8 @@ npm run dev
 ```
 
 ### API klíč
-Zadejte klíč do prostředí jako `VITE_GEMINI_API_KEY`, aby fungovala analýza textu.
+Zadejte klíč do prostředí jako `VITE_GEMINI_API_KEY` nebo jej uložte přímo v aplikaci (localStorage),
+aby fungovala analýza textu i Live API.
 
 ## Electron
 Boilerplate pro Electron je v `electron/main.ts` a načítá Vite dev server nebo build.

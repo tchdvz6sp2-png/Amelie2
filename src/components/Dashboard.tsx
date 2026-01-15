@@ -35,6 +35,11 @@ const Dashboard = ({ profile, history, homework, onStartSession }: DashboardProp
             <p className="mt-2 text-lg text-slate-600">
               Amelia sleduje váš emocionální soulad a pomáhá zklidnit napětí.
             </p>
+            <div className="mt-4 flex flex-wrap gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              <span>Spolu {profile.relationshipLength}</span>
+              <span>•</span>
+              <span>{profile.goals}</span>
+            </div>
           </div>
           <button
             onClick={onStartSession}

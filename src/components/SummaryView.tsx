@@ -26,7 +26,12 @@ const SummaryView = ({ summary, onBack }: SummaryViewProps) => {
       </header>
 
       <div className="rounded-3xl bg-white p-8 shadow-soft">
-        <h3 className="text-2xl font-semibold">{summary.topic}</h3>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-2xl font-semibold">{summary.topic}</h3>
+          <span className="rounded-full bg-indigo-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-700">
+            Sentiment: {summary.sentiment}
+          </span>
+        </div>
         <p className="mt-4 text-base text-slate-700">{summary.summary}</p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">

@@ -1,18 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { TranscriptLine } from "../lib/types";
 import { getSystemPrompt } from "../lib/genai";
 
 interface SessionRoomProps {
+  apiKey: string | null;
   onComplete: (transcript: TranscriptLine[]) => void;
 }
 
 const visualizerBars = Array.from({ length: 12 }, (_, index) => index);
 
-const SessionRoom = ({ onComplete }: SessionRoomProps) => {
+const SessionRoom = ({ apiKey, onComplete }: SessionRoomProps) => {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [liveText, setLiveText] = useState("");
+  const [levels, setLevels] = useState<number[]>(visualizerBars.map(() => 12));
+  const [liveStatus, setLiveStatus] = useState("Odpojeno");
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const promptPreview = useMemo(() => getSystemPrompt(), []);
 
@@ -22,11 +29,59 @@ const SessionRoom = ({ onComplete }: SessionRoomProps) => {
     }
   }, [isListening]);
 
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
   const handleStart = () => {
+    if (!apiKey) {
+      setLiveStatus("Chybí API klíč");
+      return;
+    }
     setIsListening(true);
     setIsSpeaking(false);
     setTranscript([]);
     setLiveText("Naslouchám oběma partnerům a sleduji tón konverzace...");
+    setLiveStatus("Připojuji Live API...");
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((stream) => {
+        streamRef.current = stream;
+        const context = new AudioContext();
+        const analyser = context.createAnalyser();
+        analyser.fftSize = 256;
+        const source = context.createMediaStreamSource(stream);
+        source.connect(analyser);
+        audioContextRef.current = context;
+        analyserRef.current = analyser;
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        const tick = () => {
+          analyser.getByteFrequencyData(data);
+          const chunkSize = Math.floor(data.length / visualizerBars.length);
+          const next = visualizerBars.map((_, index) => {
+            const start = index * chunkSize;
+            const slice = data.slice(start, start + chunkSize);
+            const avg = slice.reduce((sum, value) => sum + value, 0) / slice.length;
+            return 12 + Math.round((avg / 255) * 60);
+          });
+          setLevels(next);
+          rafRef.current = requestAnimationFrame(tick);
+        };
+        tick();
+        setLiveStatus("Live API aktivní");
+      })
+      .catch(() => {
+        setLiveStatus("Mikrofon není dostupný");
+        setIsListening(false);
+      });
   };
 
   const handleSimulatePartner = () => {
@@ -50,6 +105,12 @@ const SessionRoom = ({ onComplete }: SessionRoomProps) => {
 
   const handleStop = () => {
     setIsListening(false);
+    setLiveStatus("Odpojeno");
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+    }
+    audioContextRef.current?.close();
+    streamRef.current?.getTracks().forEach((track) => track.stop());
     onComplete(transcript);
   };
 
@@ -90,13 +151,14 @@ const SessionRoom = ({ onComplete }: SessionRoomProps) => {
               {statusLabel}
             </span>
           </div>
+          <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-400">{liveStatus}</p>
           <div className="mt-6 flex h-32 items-end gap-2">
             {visualizerBars.map((bar) => (
               <div
                 key={bar}
                 className="w-4 rounded-full bg-indigo-600/80 transition-all"
                 style={{
-                  height: `${isSpeaking || isListening ? 40 + (bar % 5) * 12 : 16}px`,
+                  height: `${isSpeaking || isListening ? levels[bar] : 16}px`,
                   opacity: isSpeaking ? 1 : 0.4
                 }}
               />

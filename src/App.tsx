@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Dashboard from "./components/Dashboard";
+import ApiKeyPanel from "./components/ApiKeyPanel";
 import OnboardingForm from "./components/OnboardingForm";
 import SessionRoom from "./components/SessionRoom";
 import SummaryView from "./components/SummaryView";
 import { analyzeTranscript } from "./lib/genai";
-import { loadHistory, loadProfile, saveHistory, saveProfile } from "./lib/storage";
+import { clearApiKey, loadApiKey, loadHistory, loadProfile, saveApiKey, saveHistory, saveProfile } from "./lib/storage";
 import type { SessionSummary, TranscriptLine, UserProfile } from "./lib/types";
 
 const buildTranscriptText = (lines: TranscriptLine[]) =>
@@ -37,15 +38,18 @@ const App = () => {
   const [history, setHistory] = useState<SessionSummary[]>([]);
   const [view, setView] = useState<"onboarding" | "dashboard" | "session" | "summary">("onboarding");
   const [summary, setSummary] = useState<SessionSummary | null>(null);
+  const [apiKey, setApiKey] = useState<string | null>(null);
 
   useEffect(() => {
     const savedProfile = loadProfile();
     const savedHistory = loadHistory();
+    const savedApiKey = loadApiKey();
     if (savedProfile) {
       setProfile(savedProfile);
       setView("dashboard");
     }
     setHistory(savedHistory);
+    setApiKey(savedApiKey);
   }, []);
 
   const latestHomework = useMemo(() => history[0]?.homework, [history]);
@@ -54,6 +58,19 @@ const App = () => {
     saveProfile(data);
     setProfile(data);
     setView("dashboard");
+  };
+
+  const handleSaveApiKey = (value: string) => {
+    if (!value) {
+      return;
+    }
+    saveApiKey(value);
+    setApiKey(value);
+  };
+
+  const handleClearApiKey = () => {
+    clearApiKey();
+    setApiKey(null);
   };
 
   const handleSessionComplete = async (lines: TranscriptLine[]) => {
@@ -96,6 +113,9 @@ const App = () => {
         )}
 
         {view === "onboarding" && <OnboardingForm onComplete={handleOnboardingComplete} />}
+        {view !== "onboarding" && (
+          <ApiKeyPanel apiKey={apiKey} onSave={handleSaveApiKey} onClear={handleClearApiKey} />
+        )}
         {view === "dashboard" && profile && (
           <Dashboard
             profile={profile}
@@ -104,7 +124,7 @@ const App = () => {
             onStartSession={() => setView("session")}
           />
         )}
-        {view === "session" && <SessionRoom onComplete={handleSessionComplete} />}
+        {view === "session" && <SessionRoom apiKey={apiKey} onComplete={handleSessionComplete} />}
         {view === "summary" && summary && <SummaryView summary={summary} onBack={() => setView("dashboard")} />}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { loadApiKey } from "./storage";
 import type { SessionSummary } from "./types";
 
 const SYSTEM_PROMPT = `Jsi Amelia AI, nestranná terapeutka pro páry. Tvým klientem je vztah, nikoliv jeden z partnerů.
@@ -21,7 +22,8 @@ const responseSchema = {
 };
 
 const getClient = () => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+  const apiKey =
+    (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) ?? loadApiKey() ?? undefined;
   if (!apiKey) {
     return null;
   }
